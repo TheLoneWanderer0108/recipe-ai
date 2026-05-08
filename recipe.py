@@ -4,22 +4,26 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
 
 load_dotenv()
+#choose model here
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
+    model="gemini-2.5-flash-lite",
     temperature=0.7
 )
 area = input("Enter the area of the world you want a recipe from: ")
 # this is the prompt template, it will be used to generate the recipe based on the area that user inputted
-recipe_template = """You are a culinary expert. Give the name of a classical recipe from {area}.
+recipe_template = """You are a culinary expert. 
+Return ONLY the name of one classical recipe from {area}.
+No explanation. No description. Just the recipe name.
+
+Example output: Chiles Rellenos
 """
 recipe_prompt = PromptTemplate.from_template(recipe_template)
 
 ingredients_template =  """
-Extract ONLY the ingredients from the recipe below.
+provide ONLY the ingredients to make the recipe below, provide exact amounts.
 
 Rules:
 - Do NOT rewrite the recipe
-- Do NOT add explanations
 - Return ONLY a bullet list
 
 Recipe:
