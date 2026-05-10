@@ -4,33 +4,51 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
 from langchain.tools import tool
 
-@tool
-def ingredient_subs(ingredient: str) -> str:
-    """Only return a substitute for the ingredient provided. 
-    Do not return any explanation or description. Just the substitute."""
-
-    substitutes = {
-        "eggs": "1/4 cup unsweetened applesauce or 1/4 cup mashed banana",
-        "milk": "unsweetened almond milk or soy milk",
-        "butter": "coconut oil or olive oil",
-        "sugar": "honey or maple syrup",
-        "flour": "almond flour or oat flour",
-        "baking powder": "1/4 teaspoon baking soda + 1/2 teaspoon vinegar or lemon juice",
-        "vanilla extract": "1/2 teaspoon almond extract or 1/2 teaspoon maple syrup",
-        "salt": "1/4 teaspoon sea salt or 1/4 teaspoon kosher salt"
-    }
-    return substitutes.get(ingredient.lower(), "No substitute found for this ingredient.")
-    
-
-
 load_dotenv()
-#choose model here
+
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash-lite",
     temperature=0.7
 )
 
-llm_with_tools = llm.bind_tools([ingredient_subs])
+@tool
+
+def cooking_time_estimate(recipe: str) -> str:
+
+    """This tool takes a recipe name as an input and returns an estimated cooking time for the recipe."""
+
+    prompt = f"""
+        You are a culinary expert.
+
+        Estimate the cooking time for: {recipe}
+        This could be a full recipe name or a specific cooking step.
+        Rules:
+        - Return only the estimated time in minutes
+        - No explanation
+        - Be concise
+        """
+    return llm.invoke(prompt).content
+@tool
+def ingredient_subs(ingredient: str) -> str:
+
+    """This tool takes an ingredient as input and returns 2 cooking substitutes for that ingredient."""
+
+    prompt = f"""
+    You are a cooking ingredient substitution expert.
+
+    Give 2 realistic substitutes for {ingredient} used in cooking.
+
+    Rules:
+    - Return only ingredient names
+    - No numbering
+    - No explanation
+    - One substitute per line
+    - Substitutes must serve the same cooking purpose
+    """
+    return llm.invoke(prompt).content
+    
+
+llm_with_tools = llm.bind_tools([ingredient_subs, cooking_time_estimate])
 area = input("Enter the area of the world you want a recipe from: ")
 # this is the prompt template, it will be used to generate the recipe based on the area that user inputted
 recipe_template = """You are a culinary expert. 
@@ -87,12 +105,19 @@ print(f"Recipe: {recipe}")
 print(f"Ingredients: {ingredients}")
 print(f"Instructions: {instructions}")
 
-missing_ingredient = input("Enter an ingredient you want to substitute: ")
-response = llm_with_tools.invoke(f"What is a substitute for {missing_ingredient}?")
+question = input("Have any cooking question(time estimates or ingredient substitutions): ")
+response = llm_with_tools.invoke(question)
 if response.tool_calls:
     tool_call = response.tool_calls[0]
-    ingredient = tool_call["args"]["ingredient"]
-    result = ingredient_subs.invoke(ingredient)
-    print(f"Substitute for {ingredient}: {result}")
+    tool_name = tool_call["name"]
+    tool_args = tool_call["args"]
+    if tool_name == "cooking_time_estimate":
+        query_recipe = tool_args["recipe"]
+        result = cooking_time_estimate.invoke({"recipe": query_recipe})
+        print(f"Estimated cooking time for {query_recipe}: {result} minutes")
+    elif tool_name == "ingredient_subs":
+        ingredient = tool_args["ingredient"]
+        result = ingredient_subs.invoke({"ingredient": ingredient})
+        print(f"Substitutes for {ingredient}:\n{result}")
 else:    print(response.content)
 
