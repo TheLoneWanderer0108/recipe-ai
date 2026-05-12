@@ -3,14 +3,13 @@ from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
 from langchain.tools import tool
-
+from langchain_core.messages import HumanMessage, AIMessage
 load_dotenv()
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash-lite",
     temperature=0.7
 )
-
 
 @tool
 
@@ -63,6 +62,7 @@ def ingredient_subs(ingredient: str) -> str:
     - No numbering
     - No explanation
     - One substitute per line
+    -do NOT include the original ingredient in the list of substitutes
     - Substitutes must serve the same cooking purpose
     """
     return llm.invoke(prompt).content
@@ -125,14 +125,22 @@ print(f"Recipe: {recipe}")
 print(f"Ingredients: {ingredients}")
 print(f"Instructions: {instructions}")
 
-question = input("Have any cooking question(time estimates or ingredient substitutions): ")
-contextualized_question = f"""
-The user just received this recipe: {recipe}
-With these ingredients: {ingredients}
 
-User question: {question}
-"""
-response = llm_with_tools.invoke(contextualized_question)
+history = [
+    AIMessage(content=
+    f""" I have generated the following recipe:
+    Recipe: {recipe}
+    Ingredients: {ingredients}
+    Instructions: {instructions}
+    """
+    )
+]
+
+question = input("Have any cooking question(time estimates, ingredient substitutions or calorie estimates): ")
+history.append(HumanMessage(content=question))
+
+response = llm_with_tools.invoke(history)
+
 if response.tool_calls:
     for tool_call in response.tool_calls:
         tool_name = tool_call["name"]
