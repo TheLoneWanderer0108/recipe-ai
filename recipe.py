@@ -13,6 +13,26 @@ llm = ChatGoogleGenerativeAI(
 
 @tool
 
+def serving_size(recipe: str, original_serving: str, desired_serving: str) -> str:
+
+    """This tool takes a recipe name, its original serving size and a desired serving size as input and returns the adjusted ingredient amounts for the desired serving size."""
+
+    prompt = f"""
+        You are a culinary expert.
+
+        Adjust the ingredient amounts for {recipe} from {original_serving} servings to {desired_serving} servings.
+
+        Rules:
+        - Return only the adjusted ingredient list with exact amounts
+        - No explanation
+        - Be concise
+        - Return in bullet list format
+        """
+
+    return llm.invoke(prompt).content
+
+@tool
+
 def calorie_estimate(recipe: str, ingredients: str) -> str:
 
     """This tool takes a recipe name and its ingredients as input and returns an estimated calorie count for the recipe."""
@@ -68,7 +88,7 @@ def ingredient_subs(ingredient: str) -> str:
     return llm.invoke(prompt).content
     
 
-llm_with_tools = llm.bind_tools([ingredient_subs, cooking_time_estimate, calorie_estimate])
+llm_with_tools = llm.bind_tools([ingredient_subs, cooking_time_estimate, calorie_estimate, serving_size])
 area = input("Enter the area of the world you want a recipe from: ")
 # this is the prompt template, it will be used to generate the recipe based on the area that user inputted
 recipe_template = """You are a culinary expert. 
@@ -85,6 +105,8 @@ provide ONLY the ingredients to make the recipe below, provide exact amounts.
 Rules:
 - Do NOT rewrite the recipe
 - Return ONLY a bullet list
+- Also provide serving size
+- Be concise
 
 Recipe:
 {recipe}
@@ -158,6 +180,13 @@ if response.tool_calls:
             query_ingredients = tool_args["ingredients"]
             result = calorie_estimate.invoke({"recipe": query_recipe, "ingredients": query_ingredients})
             print(f"Estimated calorie count for {query_recipe}: {result} calories")
+        elif tool_name == "serving_size":
+            query_recipe = tool_args["recipe"]
+            original_serving = tool_args["original_serving"]
+            desired_serving = tool_args["desired_serving"]
+            result = serving_size.invoke({"recipe": query_recipe, "original_serving": original_serving, "desired_serving": desired_serving})
+            ingredients = result
+            print(f"Adjusted ingredient amounts for {desired_serving} servings of {query_recipe}:\n{result}")
 else:    
     print(response.content)
 
