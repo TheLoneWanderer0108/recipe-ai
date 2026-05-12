@@ -11,6 +11,26 @@ llm = ChatGoogleGenerativeAI(
     temperature=0.7
 )
 
+
+@tool
+
+def calorie_estimate(recipe: str, ingredients: str) -> str:
+
+    """This tool takes a recipe name and its ingredients as input and returns an estimated calorie count for the recipe."""
+
+    prompt = f"""
+        You are a nutritional expert.
+
+        Estimate the calorie count for the following recipe: {recipe}
+        ingredients: {ingredients}
+        Rules:
+        - Return only the estimated calorie count
+        - No explanation
+        - Be concise
+        """
+
+    return llm.invoke(prompt).content
+
 @tool
 
 def cooking_time_estimate(recipe: str) -> str:
@@ -48,7 +68,7 @@ def ingredient_subs(ingredient: str) -> str:
     return llm.invoke(prompt).content
     
 
-llm_with_tools = llm.bind_tools([ingredient_subs, cooking_time_estimate])
+llm_with_tools = llm.bind_tools([ingredient_subs, cooking_time_estimate, calorie_estimate])
 area = input("Enter the area of the world you want a recipe from: ")
 # this is the prompt template, it will be used to generate the recipe based on the area that user inputted
 recipe_template = """You are a culinary expert. 
@@ -106,18 +126,30 @@ print(f"Ingredients: {ingredients}")
 print(f"Instructions: {instructions}")
 
 question = input("Have any cooking question(time estimates or ingredient substitutions): ")
-response = llm_with_tools.invoke(question)
+contextualized_question = f"""
+The user just received this recipe: {recipe}
+With these ingredients: {ingredients}
+
+User question: {question}
+"""
+response = llm_with_tools.invoke(contextualized_question)
 if response.tool_calls:
-    tool_call = response.tool_calls[0]
-    tool_name = tool_call["name"]
-    tool_args = tool_call["args"]
-    if tool_name == "cooking_time_estimate":
-        query_recipe = tool_args["recipe"]
-        result = cooking_time_estimate.invoke({"recipe": query_recipe})
-        print(f"Estimated cooking time for {query_recipe}: {result} minutes")
-    elif tool_name == "ingredient_subs":
-        ingredient = tool_args["ingredient"]
-        result = ingredient_subs.invoke({"ingredient": ingredient})
-        print(f"Substitutes for {ingredient}:\n{result}")
-else:    print(response.content)
+    for tool_call in response.tool_calls:
+        tool_name = tool_call["name"]
+        tool_args = tool_call["args"]
+        if tool_name == "cooking_time_estimate":
+            query_recipe = tool_args["recipe"]
+            result = cooking_time_estimate.invoke({"recipe": query_recipe})
+            print(f"Estimated cooking time for {query_recipe}: {result} minutes")
+        elif tool_name == "ingredient_subs":
+            ingredient = tool_args["ingredient"]
+            result = ingredient_subs.invoke({"ingredient": ingredient})
+            print(f"Substitutes for {ingredient}:\n{result}")
+        elif tool_name == "calorie_estimate":
+            query_recipe = tool_args["recipe"]
+            query_ingredients = tool_args["ingredients"]
+            result = calorie_estimate.invoke({"recipe": query_recipe, "ingredients": query_ingredients})
+            print(f"Estimated calorie count for {query_recipe}: {result} calories")
+else:    
+    print(response.content)
 
