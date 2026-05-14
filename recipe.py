@@ -157,36 +157,37 @@ history = [
     """
     )
 ]
+while True:
+    question = input("Have any cooking question(time estimates, ingredient substitutions or calorie estimates): ")
+    if question.lower() == "exit":
+        break
+    history.append(HumanMessage(content=question))
 
-question = input("Have any cooking question(time estimates, ingredient substitutions or calorie estimates): ")
-history.append(HumanMessage(content=question))
+    response = llm_with_tools.invoke(history)
 
-response = llm_with_tools.invoke(history)
-
-if response.tool_calls:
-    for tool_call in response.tool_calls:
-        tool_name = tool_call["name"]
-        tool_args = tool_call["args"]
-        if tool_name == "cooking_time_estimate":
-            query_recipe = tool_args["recipe"]
-            result = cooking_time_estimate.invoke({"recipe": query_recipe})
-            print(f"Estimated cooking time for {query_recipe}: {result} minutes")
-        elif tool_name == "ingredient_subs":
-            ingredient = tool_args["ingredient"]
-            result = ingredient_subs.invoke({"ingredient": ingredient})
-            print(f"Substitutes for {ingredient}:\n{result}")
-        elif tool_name == "calorie_estimate":
-            query_recipe = tool_args["recipe"]
-            query_ingredients = tool_args["ingredients"]
-            result = calorie_estimate.invoke({"recipe": query_recipe, "ingredients": query_ingredients})
-            print(f"Estimated calorie count for {query_recipe}: {result} calories")
-        elif tool_name == "serving_size":
-            query_recipe = tool_args["recipe"]
-            original_serving = tool_args["original_serving"]
-            desired_serving = tool_args["desired_serving"]
-            result = serving_size.invoke({"recipe": query_recipe, "original_serving": original_serving, "desired_serving": desired_serving})
-            ingredients = result
-            print(f"Adjusted ingredient amounts for {desired_serving} servings of {query_recipe}:\n{result}")
-else:    
-    print(response.content)
+    if response.tool_calls:
+        for tool_call in response.tool_calls:
+            tool_name = tool_call["name"]
+            tool_args = tool_call["args"]
+            if tool_name == "cooking_time_estimate":
+                query_recipe = tool_args["recipe"]
+                result = cooking_time_estimate.invoke({"recipe": query_recipe})
+                print(f"Estimated cooking time for {query_recipe}: {result} minutes")
+            elif tool_name == "ingredient_subs":
+                ingredient = tool_args["ingredient"]
+                result = ingredient_subs.invoke({"ingredient": ingredient})
+                print(f"Substitutes for {ingredient}:\n{result}")
+            elif tool_name == "calorie_estimate":
+                result = calorie_estimate.invoke({"recipe": recipe, "ingredients": ingredients})
+                print(f"Estimated calorie count for {recipe}: {result} calories")
+            elif tool_name == "serving_size":
+                original_serving = tool_args["original_serving"]
+                desired_serving = tool_args["desired_serving"]
+                result = serving_size.invoke({"recipe": recipe, "original_serving": original_serving, "desired_serving": desired_serving})
+                ingredients = result
+                print(f"Adjusted ingredient amounts for {desired_serving} servings of {recipe}:\n{result}")
+            history.append(AIMessage(content=str(result)))
+    else:    
+        print(response.content)
+        history.append(AIMessage(content=response.content))
 
