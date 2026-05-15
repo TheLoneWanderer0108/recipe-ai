@@ -12,6 +12,44 @@ llm = ChatGoogleGenerativeAI(
 )
 
 @tool
+def another_recipe(area: str, exclude_recipe: str) -> str:
+    """Call this tool whenever the user asks for a new recipe, different recipe, or another recipe. 
+    ALWAYS use the area and current recipe from the conversation history. 
+    NEVER ask the user for area or exclude_recipe."""
+    prompt = f"""
+        You are a culinary expert.
+
+        Return ONLY the name of one classical recipe from {area} that is NOT {exclude_recipe}.
+        No explanation. No description. Just the recipe name.
+
+        Example output: Chiles Rellenos
+        """
+
+    return llm.invoke(prompt).content
+
+@tool
+
+def difficulty_level(recipe: str, ingredients: str, instructions: str) -> str:
+    
+    """This tool takes a recipe name, its ingredients and instructions as input and returns an estimated difficulty level)"""
+
+    prompt = f"""
+        You are a culinary expert.
+
+        Estimate the difficulty level of the following recipe: {recipe}
+        ingredients: {ingredients}
+        instructions: {instructions}
+
+        Rules:
+        - Return only the estimated difficulty, take into account how easy or hard it is based on preparation time and skilland give it a level (easy, medium, hard)
+        - explain with one sentence why you gave that difficulty level
+        - No explanation
+        - Be concise
+        """
+
+    return llm.invoke(prompt).content
+
+@tool
 
 def serving_size(recipe: str, original_serving: str, desired_serving: str) -> str:
 
@@ -88,7 +126,7 @@ def ingredient_subs(ingredient: str) -> str:
     return llm.invoke(prompt).content
     
 
-llm_with_tools = llm.bind_tools([ingredient_subs, cooking_time_estimate, calorie_estimate, serving_size])
+llm_with_tools = llm.bind_tools([ingredient_subs, cooking_time_estimate, calorie_estimate, serving_size, difficulty_level, another_recipe])
 area = input("Enter the area of the world you want a recipe from: ")
 # this is the prompt template, it will be used to generate the recipe based on the area that user inputted
 recipe_template = """You are a culinary expert. 
@@ -150,10 +188,13 @@ print(f"Instructions: {instructions}")
 
 history = [
     AIMessage(content=
-    f""" I have generated the following recipe:
-    Recipe: {recipe}
+    f"""I have generated the following recipe:
+    Current area: {area}
+    Current recipe: {recipe}
     Ingredients: {ingredients}
     Instructions: {instructions}
+    
+    If the user asks for another recipe, use area='{area}' and exclude_recipe='{recipe}'.
     """
     )
 ]
@@ -186,6 +227,24 @@ while True:
                 result = serving_size.invoke({"recipe": recipe, "original_serving": original_serving, "desired_serving": desired_serving})
                 ingredients = result
                 print(f"Adjusted ingredient amounts for {desired_serving} servings of {recipe}:\n{result}")
+            elif tool_name == "difficulty_level":
+                result = difficulty_level.invoke({"recipe": recipe, "ingredients": ingredients, "instructions": instructions})
+                print(f"Estimated difficulty level for {recipe}: {result}")
+            elif tool_name == "another_recipe":
+                result = another_recipe.invoke({"area": area, "exclude_recipe": recipe})
+                recipe = result
+                ingredients = ingredients_chain.invoke({"recipe": recipe}).content
+                instructions = instructions_chain.invoke({"recipe": recipe, "ingredients": ingredients}).content
+                print(f"New Recipe: {recipe}")
+                print(f"Ingredients: {ingredients}")
+                print(f"Instructions: {instructions}")
+                history.append(AIMessage(content=f"""
+                    I have generated a new recipe:
+                    Recipe: {recipe}
+                    Ingredients: {ingredients}
+                    Instructions: {instructions}
+                    """))
+                continue
             history.append(AIMessage(content=str(result)))
     else:    
         print(response.content)
