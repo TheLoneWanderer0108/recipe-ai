@@ -16,7 +16,8 @@ ingredients with exact amounts, and step-by-step cooking instructions.
 1. Clone the repo
 2. Install dependencies: `pip install -r requirements.txt`
 3. Add your `GOOGLE_API_KEY` to a `.env` file
-4. Run: `python3 recipe.py`
+4. Run for terminal version: `python3 recipe.py`
+5. Run for web ui version: `streamlit run app.py`, make sure to check the port
 
 ## What I Learned
 - LangChain prompt templates
